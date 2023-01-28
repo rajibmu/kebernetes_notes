@@ -1,0 +1,167 @@
+sharmavijay86.github.io
+Kubernetes
+
+Kubernetes cluster lab with ubuntu 20.04
+Cloud-init-config
+If you are using this cloud-init user data file on ubuntu 20.04 it will setup all prerequisite including. apt repo, kernel parameter, kubeadm. Just change the desired kubernetes version.
+#cloud-config
+hostname: test1
+fqdn: test1.mylab.local
+manage_etc_hosts: true
+package_upgrade: true
+package_update: true
+packages:
+        - vim
+        - bash-completion
+        - git
+        - net-tools
+        - containerd
+        - curl
+        - wget
+        - apt-transport-https
+write_files:
+- path: /etc/modules-load.d/k8s.conf
+  permissions: '0644'
+  content: |
+    br_netfilter
+- path: /etc/apt/sources.list.d/kubernetes.list
+  permissions: '0644'
+  content: |
+    deb [signed-by=/usr/share/keyrings/kubernetes-archive-keyring.gpg] https://apt.kubernetes.io/ kubernetes-xenial main
+- path: /etc/sysctl.d/k8s.conf
+  permissions: '0644'
+  content: |
+    net.ipv4.ip_forward = 1
+    net.bridge.bridge-nf-call-ip6tables = 1
+    net.bridge.bridge-nf-call-iptables = 1
+runcmd:
+  - sysctl --system
+  - curl -fsSLo /usr/share/keyrings/kubernetes-archive-keyring.gpg https://packages.cloud.google.com/apt/doc/apt-key.gpg
+  - apt-key add /usr/share/keyrings/kubernetes-archive-keyring.gpg
+  - apt update
+# to check on what version, use this https://kubernetes.io/releases/_print/
+  - apt install kubelet=1.19.11-00 kubeadm=1.19.11-00 kubectl=1.19.11-00 -y
+  - kubeadm config images pull
+users:
+  - name: vijay
+    groups: wheel
+    lock_passwd: false
+    passwd: $6$L6sXilzFo0ZmsuN7$VvAopTMjoL62tW1Sr64YCWRXiaFjx4UA36lNgS7A2lK3AYsxRMKhB1PXA88cwmVW0U3aPU8xD2xhkrSDkM3rN1
+    shell: /bin/bash
+    sudo: ['ALL=(ALL) NOPASSWD:ALL']
+    ssh-authorized-keys:
+      - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC5QqtH1y7NC/jJ8pOGzeQ90n8XuESQ+JMQovkhS/CFdGeh2Il0KDgFWvbxrkVUlnPEHCSTKEm92jLXfhlzGxX/5KSgkzRAgOQpsCP29nvjcFMVoyErcVen0KrQmhf7njg92lQIEyymNGNhd8b5gONXxHd0PpsOMT5wtvt9CZoN8aJu32+JT844xljp9tyirgptyJQdcjqb/rNKPh5vrRcPF4gRcQEMXRtLiXJfZ6Mg67/rLYO6oDrZSApG5oyS+JZx/g/mEuGeeVkOF+Ivc8Iq0AiWewJrjb/8e93lH14x5LaURkhZmRKIQfk7Fg5BRzIgboJBf8MvEDsBoftaOx2r vijay@virus
+power_state:
+  mode: reboot
+  message: Post config done! Rebooting now.........
+  condition: True
+view rawk8s-cloud.config hosted with ❤ by GitHub
+Step to follow on all nodes
+
+sudo apt-get update
+sudo apt-get install containerd -y
+curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add
+sudo apt-add-repository "deb http://apt.kubernetes.io/ kubernetes-xenial main"
+sudo apt install kubelet=1.24.7-00 kubeadm=1.24.7-00 kubectl=1.24.7-00 -y
+sudo modprobe overlay
+sudo modprobe br_netfilter
+sudo tee /etc/sysctl.d/kubernetes.conf<<EOF
+net.bridge.bridge-nf-call-ip6tables = 1
+net.bridge.bridge-nf-call-iptables = 1
+net.ipv4.ip_forward = 1
+EOF
+sudo sysctl --system
+step on master node
+
+sudo kubeadm init --pod-network-cidr=10.244.0.0/16
+
+mkdir -p $HOME/.kube
+
+sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+
+sudo chown $(id -u):$(id -g) $HOME/.kube/config
+
+join worker node ( step on worker node )
+
+kubeadm join 192.168.122.220:6443 --token gefqt9.oj3kcgubehofxbz8 --discovery-token-ca-cert-hash sha256:a79789ade9c95182522f55b1ab17e93cd6eac9c7eaf8b7b67a6c125bbb5f50ce
+
+deploy a pod network plugin ( on master node )
+
+kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
+kubectl apply -f https://github.com/weaveworks/weave/releases/download/v2.8.1/weave-daemonset-k8s.yaml
+### Setup of metal LB (Optional) Apply deployment manifests-
+
+kubectl get configmap kube-proxy -n kube-system -o yaml | sed -e "s/strictARP: false/strictARP: true/" | kubectl apply -f - -n kube-system
+kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.9.6/manifests/namespace.yaml
+kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.9.6/manifests/metallb.yaml
+kubectl create secret generic -n metallb-system memberlist --from-literal=secretkey="$(openssl rand -base64 128)"
+Create yaml for ip pool
+
+vim ip-pool.yaml
+Apply the ip pool for LB. Create and modify values based on your network.
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  namespace: metallb-system
+  name: config
+data:
+  config: |
+    address-pools:
+    - name: default
+      protocol: layer2
+      addresses:
+      - 192.168.122.20-192.168.122.30
+Apply
+
+kubectl apply -f ip-pool.yaml
+Install/enable helm binary
+curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
+sudo bash get_helm.sh
+Setup ingres as nginx
+Daemonset
+ helm install ingress-nginx ingress-nginx --repo https://kubernetes.github.io/ingress-nginx --create-namespace=true \
+ --set controller.kind=DaemonSet,controller.service.enabled=false \
+ --set controller.hostNetwork=true,controller.publishService.enabled=false --namespace=ingress 
+Deployment
+ helm install ingress-nginx ingress-nginx --repo https://kubernetes.github.io/ingress-nginx --namespace=ingress --create-namespace=true 
+NFS dynamic provisioner setup ( Helm Chart )
+helm repo add nfs-subdir-external-provisioner  https://kubernetes-sigs.github.io/nfs-subdir-external-provisioner   
+
+helm install nfs-subdir-external-provisioner nfs-subdir-external-provisioner/nfs-subdir-external-provisioner \
+    --namespace=kube-system \
+    --set nfs.server=192.168.1.11 \
+    --set nfs.path=/k8snfs/nfs
+If you wish to set the storage class as default as well Then upgrade the chart
+helm upgrade nfs-subdir-external-provisioner nfs-subdir-external-provisioner/nfs-subdir-external-provisioner     \
+   --namespace=kube-system    \
+   --set nfs.server=192.168.1.11  \
+   --set nfs.path=/k8snfs/nfs  \
+   --set storageClass.defaultClass=true
+Setup Cert-manager
+kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.10.0/cert-manager.yaml
+Setup metrics-server
+kubectl apply -f https://raw.githubusercontent.com/sharmavijay86/sharmavijay86.github.io/master/blog/k8ssetup/components.yaml
+Setup the EFK (elastic search fluentbit & kibana) stack with helm chart
+kubectl create ns logging
+helm upgrade --install fluent-bit fluent-bit --repo=https://fluent.github.io/helm-charts
+helm upgrade --install elasticsearch elasticsearch --set=replicas=3,minimumMasterNodes=1,resources.requests.cpu=100m,resources.requests.memory=1Gi,volumeClaimTemplate.resources.requets.storage=5Gi, --repo=https://helm.elastic.co -n logging
+
+helm upgrade --install kibana kibana --set=resources.requests.cpu=100m,resources.requests.memory=500Mi,ingress.enabled=true,ingress.annotations."cert-manager\.io\/cluster-issuer"=letsencrypt-staging,ingress.hosts[0].host=kibana.k8s.mevijay.dev,ingress.hosts[0].paths[0].path=/,ingress.tls[0].secretName=kibana-tls,ingress.tls[0].hosts[0]=kibana.k8s.mevijay.dev --repo=https://helm.elastic.co -n logging
+Dynamic storage provisioning
+For the dynamic provisioning we need a storage class and rancher have the answer for this lab.
+
+Setup the provisioner
+kubectl apply -f https://raw.githubusercontent.com/rancher/local-path-provisioner/v0.0.23/deploy/local-path-storage.yaml
+Create a pvc and pod
+
+kubectl create -f https://raw.githubusercontent.com/rancher/local-path-provisioner/master/examples/pvc/pvc.yaml
+kubectl create -f https://raw.githubusercontent.com/rancher/local-path-provisioner/master/examples/pod/pod.yaml
+Setup monitoring with prometheus and grafana
+Download the hlem chart values.yaml file for both grafana and prometheus.
+wget https://raw.githubusercontent.com/sharmavijay86/sharmavijay86.github.io/master/blog/k8ssetup/grafana-values.yaml
+wget https://raw.githubusercontent.com/sharmavijay86/sharmavijay86.github.io/master/blog/k8ssetup/prometheus-values.yaml
+Updates values based on your case. mainly the ingress part and storage part.
+Run the helm commands to deploy it all.
+helm install prometheus prometheus --repo=https://prometheus-community.github.io/helm-charts -n prometheus --create-namespace
+helm install grafana grafana --repo=https://grafana.github.io/helm-charts  -f grafana-values.yaml -n prometheus
