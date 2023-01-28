@@ -112,17 +112,18 @@ sudo sysctl --system
 --------step on master node
 sudo kudeadm reset --cri-socket unix://var/run/crio.sock
 sudo kubeadm init 
-        --pod-network-cidr=10.244.0.0/16
-        --cri-socket unix://var/run/crio.sock
-        --apiserver-advertise-address 192.168.56.101
+        --pod-network-cidr=10.244.0.0/16 
+        --cri-socket unix:///var/run/crio/crio.sock 
+        --apiserver-advertise-addess 192.168.56.101
         (To set specific IP (master) map)
         
 --------step on worker node after get from master token key
 sudo swaoff -a
-kubeadm join 192.168.122.220:6443 
-        --token gefqt9.oj3kcgubehofxbz8 
-        --discovery-token-ca-cert-hash sha256:a79789ade9c95182522f55b1ab17e93cd6eac9c7eaf8b7b67a6c125bbb5f50ce
-        --cri-socket unix://var/run/crio.sock
+
+sudo kubeadm join 192.168.56.101:6443 
+        --token q08fmh.08op993mmjlu8ojm 
+        --discovery-token-ca-cert-hash sha256:1a28d2d9213eb203316fe7ceae125cefb986422b0ab70d6f69376d207880cd46 
+        --cri-socket unix:///var/run/crio/crio.sock
 
 --Master
 mkdir -p $HOME/.kube
