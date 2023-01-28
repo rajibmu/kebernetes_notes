@@ -137,6 +137,9 @@ kubectl get po -o wide
 kubectl get po -n <namespace> -o wide
 kubectl get po -n <namespace> -o yaml
 kubectl get po -n <namespace> -o json
+kubectl get po -A //get all pod
+
+//Save into file and deploy from file
 kubectl run <appName> 
         --image=nginx:1.22 
         --dry-run=client
@@ -144,6 +147,9 @@ kubectl run <appName>
 kubectl apply -f pod.yaml
 
 kubectl delete po <nameofpod>
+
+--Work Node
+sudo crictl ps // find the containers
 
 --Deploy a pod network plugin ( on master node )
 kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
