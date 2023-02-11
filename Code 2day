@@ -1,1 +1,24 @@
 
+
+--Service Type:
+1. Cluster IP
+kubectl get deploy
+
+2.NotePort
+
+3.LoadBalancer
+
+4. Ingress
+
+--Install/enable helm binary
+curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
+sudo bash get_helm.sh
+
+--Setup ingres as nginx
+    --Daemonset
+     helm install ingress-nginx ingress-nginx --repo https://kubernetes.github.io/ingress-nginx --create-namespace=true \
+     --set controller.kind=DaemonSet,controller.service.enabled=false \
+     --set controller.hostNetwork=true,controller.publishService.enabled=false --namespace=ingress 
+
+
+
