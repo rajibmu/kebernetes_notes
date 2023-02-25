@@ -1,0 +1,43 @@
+Creating Secrete--
+ubuntu01@ubuntu01-VirtualBox:~$ openssl req -subj '/CN=abc.com/O=Mindteck Lab/C=IN' -new -newkey rsa:2048 -sha256 -days 365 -nodes -x509 -keyout key.key -out cert.crt
+Generating a RSA private key
+.....................................................................................+++++
+....................+++++
+writing new private key to 'key.key'
+-----
+ubuntu01@ubuntu01-VirtualBox:~$ kubectl create secret tls abc-tls --cert=cert.crt --key=key.key
+secret/abc-tls created
+ubuntu01@ubuntu01-VirtualBox:~$ kubectl create ingress webcm --rule="abc.com/*=webcm:80, tls=abc-tls" --class=nginx
+ingress.networking.k8s.io/webcm created
+ubuntu01@ubuntu01-VirtualBox:~$ wget https://raw.githubusercontent.com/mevijays/training-k8s/main/kubernetes/yamls/pod-example/Init-container.yml
+--Modify--By remove first Init container.
+vim Init-container.yml
+
+
+helm commands:
+helm repo add binami https://charts.bitnami.com/binami
+helm search repo worpress
+helm pull bitnami/worpress
+  --username=demo
+  --password=Change1!
+
+helm install word1 bitnami/worpress
+helm repo list
+
+
+helm create mychart
+helm upgrade web1 .
+
+vim Chart.yaml // update  //kubectl patch command can use for yaml file update through command
+vim values.yaml //update
+helm upgrade web1 .
+helm rollback <deploy> <version>
+helm rollback web1 1
+
+helm uninstall web1 
+
+kubectl create deploy  mydeployment -- image=reg.k8s.mevijay.dev/library/nginx:1.22
+kubectl expose deploy mydeployment --port=80
+kubectl autoscale deploy mydeployment --min=2 --max=5 --cpu-percent=5
+
+
