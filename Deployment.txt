@@ -4,10 +4,22 @@ helm install myweb1 . -- set replicaCount=2, image.tag=1.21
 helm upgrade myweb1 . -- set replicaCount=12, image.tag=1.22
 
 Prod and Dev Values:
-cp value.yaml prod-value.yaml
-cp value.yaml dev-value.yaml
+cp values.yaml prod-values.yaml
+cp values.yaml dev-values.yaml
 change the dev to replicaCount=1 and image.tag=1.22
 change the prod to replicaCount=3 and image.tag=1.21
 
-helm install prod . -f prod-value.yaml
-helm install dev . -f dev-value.yaml
+helm install prod . -f prod-values.yaml
+helm install dev . -f dev-values.yaml
+helm ls
+
+
+---
+sudo ps -ef | grep api
+--
+kubectl apply -f https://raw.githubusercontent.com/rancher/local-path-provisioner/v0.0.23/deploy/local-path-storage.yaml
+
+kubectl patch storageclass local-path -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}'
+
+kubectl create -f https://raw.githubusercontent.com/rancher/local-path-provisioner/master/examples/pvc/pvc.yaml
+kubectl create -f https://raw.githubusercontent.com/rancher/local-path-provisioner/master/examples/pod/pod.yaml
