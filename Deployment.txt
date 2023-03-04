@@ -1,1 +1,13 @@
+helm Commands:
+helm install myweb1 . -- set replicaCount=2
+helm install myweb1 . -- set replicaCount=2, image.tag=1.21
+helm upgrade myweb1 . -- set replicaCount=12, image.tag=1.22
 
+Prod and Dev Values:
+cp value.yaml prod-value.yaml
+cp value.yaml dev-value.yaml
+change the dev to replicaCount=1 and image.tag=1.22
+change the prod to replicaCount=3 and image.tag=1.21
+
+helm install prod . -f prod-value.yaml
+helm install dev . -f dev-value.yaml
